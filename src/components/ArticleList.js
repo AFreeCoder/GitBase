@@ -11,10 +11,10 @@ export default function ArticleList({ articles, showMoreLink = true }) {
   return (
     <section>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold tracking-tighter">Articles</h2>
+        <h2 className="text-3xl font-bold tracking-tighter">最新文章</h2>
         {showMoreLink && (
           <Link href="/posts" className="text-blue-600 hover:text-blue-800 transition-colors">
-            More articles →
+            更多文章 →
           </Link>
         )}
       </div>

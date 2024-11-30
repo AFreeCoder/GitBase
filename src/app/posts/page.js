@@ -3,7 +3,7 @@ import { getSortedPostsData } from '@/lib/posts';
 
 export const metadata = {
   title: 'Articles',
-  description: 'Read our latest articles on web development, GitHub tips, and best practices.',
+  description: '探索 Claude AI 的使用教程、技巧分享和最佳实践指南。',
 };
 
 export default function Articles() {

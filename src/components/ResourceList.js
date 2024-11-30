@@ -12,10 +12,10 @@ export default function ResourceList({ resources, showMoreLink = true }) {
   return (
     <section>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold tracking-tighter">Resources</h2>
+        <h2 className="text-3xl font-bold tracking-tighter">推荐资源</h2>
         {showMoreLink && (
           <Link href="/resources" className="text-blue-600 hover:text-blue-800 transition-colors">
-            More resources →
+            更多资源 →
           </Link>
         )}
       </div>

@@ -5,7 +5,7 @@ import ResourceList from '@/components/ResourceList'
 
 export const metadata = {
   title: 'Resources',
-  description: 'Explore our curated list of resources for web development, GitHub, and more.',
+  description: '精选的 Claude AI 学习资源，包括官方文档、示例代码、实用工具等。',
 }
 
 

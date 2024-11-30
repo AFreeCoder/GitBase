@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 const navItems = [
-  { path: '/', label: 'Home' },
-  { path: '/resources', label: 'Resources' },
-  { path: '/posts', label: 'Articles' },
+  { path: '/', label: '首页' },
+  { path: '/resources', label: '资源' },
+  { path: '/posts', label: '文章' },
 ]
 
 export function Navigation() {
@@ -57,7 +57,7 @@ export function Navigation() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex gap-6 md:gap-10">
           <Link href="/" className="flex items-center space-x-2">
-            <span className="inline-block font-bold">GitBase</span>
+            <span className="inline-block font-bold">ClaudeHelp</span>
           </Link>
           <nav className="hidden md:flex gap-6">
             {navItems.map((item) => (
@@ -76,7 +76,7 @@ export function Navigation() {
         </div>
         <div className="flex items-center gap-4">
           <Link
-            href="https://github.com/qiayue/gitbase"
+            href="https://github.com/afreecoder/claudehelp"
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground hover:text-foreground"
