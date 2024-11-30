@@ -6,6 +6,7 @@ export const runtime = 'edge'
 const owner = process.env.GITHUB_OWNER;
 const repo = process.env.GITHUB_REPO;
 const mdFolderPath = 'data/md';
+const articlesJsonPath = 'data/json/articles.json';
 
 // Base64 解码函数
 function base64Decode(str) {
@@ -55,7 +56,25 @@ export async function GET(request) {
       });
     }
 
-    // Fetch all MD files
+    // 尝试从索引文件获取文章列表
+    const indexResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${articlesJsonPath}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+
+    if (indexResponse.ok) {
+      const data = await indexResponse.json();
+      const content = base64Decode(data.content);
+      const articles = JSON.parse(content);
+      return NextResponse.json(articles);
+    }
+
+    // 如果索引文件不存在，则直接从 markdown 文件获取
     const filesResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/contents/${mdFolderPath}`,
       {
@@ -73,55 +92,55 @@ export async function GET(request) {
     const files = await filesResponse.json();
     const mdFiles = files.filter(file => file.name.endsWith('.md'));
 
-    const articles = await Promise.all(mdFiles.map(async file => {
-      // Fetch file content
-      const contentResponse = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-          },
+    const articles = await Promise.all(
+      mdFiles.map(async (file) => {
+        const contentResponse = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        );
+
+        if (!contentResponse.ok) {
+          throw new Error(`Failed to fetch content for ${file.path}`);
         }
-      );
 
-      if (!contentResponse.ok) {
-        throw new Error(`Failed to fetch content for ${file.path}`);
-      }
+        const data = await contentResponse.json();
+        const content = base64Decode(data.content);
+        const { data: frontMatter } = matter(content);
 
-      const data = await contentResponse.json();
-      const content = base64Decode(data.content);
-      const { data: frontMatter } = matter(content);
+        const commitsResponse = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/commits?path=${file.path}&per_page=1`,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        );
 
-      // Fetch the last commit
-      const commitsResponse = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/commits?path=${file.path}&per_page=1`,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-            'Accept': 'application/vnd.github.v3+json',
-          },
+        if (!commitsResponse.ok) {
+          throw new Error(`Failed to fetch commits for ${file.path}`);
         }
-      );
 
-      if (!commitsResponse.ok) {
-        throw new Error(`Failed to fetch commits for ${file.path}`);
-      }
+        const commits = await commitsResponse.json();
+        const lastModified = commits[0]?.commit.committer.date || data.sha;
 
-      const commits = await commitsResponse.json();
-      const lastModified = commits[0]?.commit.committer.date || data.sha;
+        return {
+          title: frontMatter.title,
+          description: frontMatter.description,
+          date: frontMatter.date,
+          lastModified,
+          path: file.path,
+          id: file.name.replace(/\.md$/, ''),
+        };
+      })
+    );
 
-      return {
-        title: frontMatter.title,
-        description: frontMatter.description,
-        date: frontMatter.date,
-        lastModified,
-        path: file.path,
-        id: file.name.replace(/\.md$/, ''),
-      };
-    }));
-
-    // Sort articles by date
+    // 按日期排序
     articles.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return NextResponse.json(articles);
