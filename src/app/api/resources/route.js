@@ -1,26 +1,42 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import { Octokit } from '@octokit/rest';
 
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN
-});
+export const runtime = 'edge'
 
 const owner = process.env.GITHUB_OWNER;
 const repo = process.env.GITHUB_REPO;
 const githubPath = 'data/json/resources.json';
-const localPath = path.join(process.cwd(), 'data', 'json', 'resources.json');
+
+// Base64 解码函数
+function base64Decode(str) {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const binString = atob(base64);
+  return new TextDecoder().decode(
+    new Uint8Array(binString.split('').map(char => char.charCodeAt(0)))
+  );
+}
+
+// Base64 编码函数
+function base64Encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  const binString = String.fromCodePoint(...bytes);
+  return btoa(binString);
+}
 
 async function getResourcesFromGitHub() {
   try {
-    const { data } = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: githubPath,
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${githubPath}`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
     });
 
-    const content = Buffer.from(data.content, 'base64').toString('utf8');
+    if (!response.ok) {
+      throw new Error('Failed to fetch resources');
+    }
+
+    const data = await response.json();
+    const content = base64Decode(data.content);
     return JSON.parse(content);
   } catch (error) {
     console.error('Error fetching resources from GitHub:', error);
@@ -28,25 +44,12 @@ async function getResourcesFromGitHub() {
   }
 }
 
-function getLocalResources() {
-  return JSON.parse(fs.readFileSync(localPath, 'utf8'));
-}
-
-export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const source = searchParams.get('source');
-
-  if (source === 'github') {
-    try {
-      const resources = await getResourcesFromGitHub();
-      return NextResponse.json(resources);
-    } catch (error) {
-      return NextResponse.json({ error: 'Failed to fetch resources from GitHub' }, { status: 500 });
-    }
-  } else {
-    // Default to local file for homepage
-    const resources = getLocalResources();
+export async function GET() {
+  try {
+    const resources = await getResourcesFromGitHub();
     return NextResponse.json(resources);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch resources' }, { status: 500 });
   }
 }
 
@@ -54,23 +57,38 @@ export async function POST(req) {
   const updatedResources = await req.json();
 
   try {
-    const { data: currentFile } = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: githubPath,
+    // Get current file to get its SHA
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${githubPath}`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
     });
 
-    await octokit.repos.createOrUpdateFileContents({
-      owner,
-      repo,
-      path: githubPath,
-      message: 'Update resources',
-      content: Buffer.from(JSON.stringify(updatedResources, null, 2)).toString('base64'),
-      sha: currentFile.sha,
+    if (!response.ok) {
+      throw new Error('Failed to fetch current file');
+    }
+
+    const currentFile = await response.json();
+
+    // Update file
+    const updateResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${githubPath}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: 'Update resources',
+        content: base64Encode(JSON.stringify(updatedResources, null, 2)),
+        sha: currentFile.sha,
+      }),
     });
 
-    // Update local file as well
-    //fs.writeFileSync(localPath, JSON.stringify(updatedResources, null, 2));
+    if (!updateResponse.ok) {
+      throw new Error('Failed to update resources');
+    }
 
     return NextResponse.json(updatedResources);
   } catch (error) {

@@ -1,52 +1,35 @@
-import { getPostData } from '@/lib/posts';
-import Link from 'next/link';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { getPostData, getAllPostIds } from '@/lib/posts'
+import { remark } from 'remark'
+import html from 'remark-html'
+
+export const runtime = 'edge'
 
 export async function generateMetadata({ params }) {
-  const postData = await getPostData(params.slug);
+  const post = await getPostData(params.slug)
   return {
-    title: `${postData.title}`,
-    description: postData.description || `Read about ${postData.title} on GitBase`,
-  };
+    title: post.title,
+    description: post.description,
+  }
+}
+
+export async function generateStaticParams() {
+  const posts = await getAllPostIds()
+  return posts
 }
 
 export default async function Post({ params }) {
-  const postData = await getPostData(params.slug);
-  
+  const post = await getPostData(params.slug)
+  const processedContent = await remark()
+    .use(html)
+    .process(post.content)
+  const contentHtml = processedContent.toString()
+
   return (
-    <article className="container mx-auto px-4 py-12 max-w-3xl">
-      {/* Breadcrumb navigation */}
-      <nav className="flex items-center text-sm text-gray-500 mb-6">
-        <Link href="/" className="hover:text-blue-600">Home</Link>
-        <ChevronRight className="mx-2" size={16} />
-        <Link href="/posts" className="hover:text-blue-600">Articles</Link>
-        <ChevronRight className="mx-2" size={16} />
-        <span className="text-gray-900">{postData.title}</span>
-      </nav>
-      
-      {/* Meta information card */}
-      <div className="bg-gray-100 rounded-lg p-6 mb-8">
-        {postData.date && (
-          <p className="text-gray-600 mb-2">{new Date(postData.date).toLocaleDateString()}</p>
-        )}
-        {postData.description && (
-          <p className="text-gray-800">{postData.description}</p>
-        )}
-      </div>
-      
-      {/* Article content */}
-      <div 
-        className="prose prose-lg max-w-none"
-        dangerouslySetInnerHTML={{ __html: postData.contentHtml }} 
-      />
-      
-      {/* Back to articles link */}
-      <div className="mt-12">
-        <Link href="/posts" className="text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center gap-2">
-          <ArrowLeft size={20} />
-          Back to articles
-        </Link>
-      </div>
-    </article>
-  );
+    <div className="container mx-auto py-12">
+      <article className="prose lg:prose-xl mx-auto">
+        <h1>{post.title}</h1>
+        <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
+      </article>
+    </div>
+  )
 }

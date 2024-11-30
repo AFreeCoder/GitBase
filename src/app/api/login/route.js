@@ -1,11 +1,28 @@
 import { NextResponse } from 'next/server';
-import { createToken } from '@/lib/auth';
+import { SignJWT } from 'jose';
+import { cookies } from 'next/headers';
+
+export const runtime = 'edge'
+
+const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key');
+
+async function createToken() {
+  const token = await new SignJWT({ 
+    isLoggedIn: true 
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(secret);
+  
+  return token;
+}
 
 export async function POST(request) {
   const { password } = await request.json();
   
   if (password === process.env.ACCESS_PASSWORD) {
-    const token = createToken();
+    const token = await createToken();
     
     const response = NextResponse.json({ message: 'Login successful' }, { status: 200 });
 
