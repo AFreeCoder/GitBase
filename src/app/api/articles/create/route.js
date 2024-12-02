@@ -139,13 +139,7 @@ async function syncArticles() {
 
 export async function POST(request) {
   try {
-    const { title, content, description } = await request.json();
-
-    // 创建文件名（使用标题的 slug 版本）
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
+    const { title, slug, content, description } = await request.json();
     
     const fileName = `${slug}.md`;
     const filePath = `${mdFolderPath}/${fileName}`;
