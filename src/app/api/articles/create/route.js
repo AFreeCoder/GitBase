@@ -36,17 +36,13 @@ async function syncArticles() {
       }
     );
 
-    if (!filesResponse.ok) {
-      throw new Error('Failed to fetch files list');
-    }
-
     const files = await filesResponse.json();
     const mdFiles = files.filter(file => file.name.endsWith('.md'));
 
     // 2. 获取每个文件的内容和提交信息
     const articles = await Promise.all(
       mdFiles.map(async (file) => {
-        // 2.1 获取文件内容
+        // 获取文件内容
         const contentResponse = await fetch(
           `https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`,
           {
@@ -56,16 +52,14 @@ async function syncArticles() {
             },
           }
         );
-
-        if (!contentResponse.ok) {
-          throw new Error(`Failed to fetch content for ${file.path}`);
-        }
-
         const fileData = await contentResponse.json();
         const content = base64Decode(fileData.content);
         const { data: frontMatter } = matter(content);
 
-        // 2.2 获取最后一次提交信息
+        // 从文件名获取 slug (移除 .md 后缀)
+        const slug = file.name.replace(/\.md$/, '');
+
+        // 获取最后提交信息
         const commitsResponse = await fetch(
           `https://api.github.com/repos/${owner}/${repo}/commits?path=${file.path}&per_page=1`,
           {
@@ -75,15 +69,11 @@ async function syncArticles() {
             },
           }
         );
-
-        if (!commitsResponse.ok) {
-          throw new Error(`Failed to fetch commits for ${file.path}`);
-        }
-
         const commits = await commitsResponse.json();
         const lastModified = commits[0]?.commit.committer.date || fileData.sha;
 
         return {
+          id: slug,  // 使用 slug 作为 id
           title: frontMatter.title,
           description: frontMatter.description,
           date: frontMatter.date,
@@ -123,7 +113,7 @@ async function syncArticles() {
         body: JSON.stringify({
           message: 'Sync articles',
           content: base64Encode(JSON.stringify(articles, null, 2)),
-          sha: sha, // 如果文件不存在，sha 将是 undefined
+          sha: sha,
         }),
       }
     );
