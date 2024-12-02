@@ -74,3 +74,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+.markdown-body table {
+  @apply w-full border-collapse border border-gray-300 my-4;
+}
+
+.markdown-body th,
+.markdown-body td {
+  @apply border border-gray-300 p-2 text-left;
+}
+
+.markdown-body th {
+  @apply bg-gray-50 font-semibold;
+}
+
+.markdown-body tr:nth-child(even) {
+  @apply bg-gray-50;
+}
+
+.markdown-body tr:hover {
+  @apply bg-gray-100;
+}
